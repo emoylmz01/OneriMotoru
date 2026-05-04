@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Öneri Motoru</title>
+  <meta name="description" content="Yapay zeka destekli kişiselleştirilmiş içerik öneri motoru."/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-ENjdO4Dr2bkBIFxQpeo6X1U9R1hR8x0aU6aWz0Lzx0P5Y1rRZbP5tZV+Kc7F8X/5" crossorigin="anonymous">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070f;
+      --bg2: #0d0d1f;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.08);
+      --purple: #8b5cf6;
+      --blue: #3b82f6;
+      --purple-dark: #6d28d9;
+      --text: #f1f5f9;
+      --muted: #64748b;
+      --muted2: #94a3b8;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background blobs */
+    body::before {
+      content: '';
+      position: fixed;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%);
+      top: -200px; left: -200px;
+      pointer-events: none; z-index: 0;
+      animation: blobMove 8s ease-in-out infinite alternate;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(59,130,246,0.10) 0%, transparent 70%);
+      bottom: -100px; right: -100px;
+      pointer-events: none; z-index: 0;
+      animation: blobMove2 10s ease-in-out infinite alternate;
+    }
+    @keyframes blobMove  { from { transform: translate(0,0);   } to { transform: translate(80px, 60px);  } }
+    @keyframes blobMove2 { from { transform: translate(0,0);   } to { transform: translate(-60px,-40px); } }
+
+    /* NAV */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem;
+      height: 60px;
+      background: rgba(7,7,15,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 1rem;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-logo svg { width: 28px; height: 28px; flex-shrink: 0; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a {
+      color: var(--muted); font-size: 0.85rem; text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-badge {
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: white; font-size: 0.75rem; font-weight: 600;
+      padding: 4px 12px; border-radius: 20px;
+    }
+
+    /* MAIN */
+    main { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+
+    /* HERO */
+    .hero { text-align: center; margin-bottom: 3rem; }
+    .hero-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+      color: #a78bfa; font-size: 0.78rem; font-weight: 600;
+      padding: 4px 14px; border-radius: 20px; margin-bottom: 1.2rem;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800; line-height: 1.2;
+      background: linear-gradient(135deg, #fff 40%, #a78bfa);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 0.8rem;
+    }
+    .hero p { color: var(--muted2); font-size: 1rem; max-width: 500px; margin: 0 auto; }
+
+    /* INPUT CARD */
+    .input-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 700px; margin: 0 auto 1.5rem;
+      backdrop-filter: blur(16px);
+    }
+    .input-label {
+      display: block; font-size: 0.8rem; font-weight: 600;
+      color: var(--muted2); letter-spacing: 0.05em;
+      text-transform: uppercase; margin-bottom: 0.75rem;
+    }
+    .input-row {
+      display: flex; gap: 0.75rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px; padding: 6px 6px 6px 16px;
+      transition: border-color 0.2s;
+    }
+    .input-row:focus-within { border-color: var(--purple); }
+    .input-row input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+    }
+    .input-row input::placeholder { color: var(--muted); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: white; border: none; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-weight: 600; font-size: 0.9rem;
+      padding: 10px 22px; border-radius: 10px;
+      display: flex; align-items: center; gap: 6px;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover  { opacity: 0.9; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* CHIPS */
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+    .chip {
+      background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.25);
+      color: #a78bfa; font-size: 0.78rem; font-weight: 500;
+      padding: 4px 12px; border-radius: 20px; cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      user-select: none;
+    }
+    .chip:hover { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.5); }
+
+    /* STATUS */
+    #status-bar {
+      text-align: center; margin-bottom: 2rem;
+      font-size: 0.85rem; color: var(--muted2);
+      display: none;
+    }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(139,92,246,0.3);
+      border-top-color: var(--purple);
+      border-radius: 50%; vertical-align: middle; margin-right: 6px;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESULTS */
+    #results-section { display: none; }
+    .results-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .results-title {
+      font-size: 1.2rem; font-weight: 700;
+    }
+    .results-count {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--glass-border);
+      border-radius: 20px; padding: 3px 12px;
+      font-size: 0.78rem; color: var(--muted2);
+    }
+
+    /* GRID */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+
+    /* CARD */
+    .rec-card {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 18px; padding: 1.4rem;
+      display: flex; flex-direction: column; gap: 0.75rem;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.25s, transform 0.2s, box-shadow 0.2s;
+      animation: fadeUp 0.4s ease both;
+      cursor: pointer;
+    }
+    .rec-card:hover { border-color: rgba(139,92,246,0.35); transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+    .card-title { font-size: 1rem; font-weight: 700; line-height: 1.35; flex: 1; }
+
+    .score-badge {
+      font-size: 0.72rem; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .score-high   { background: #10b981; color: #000; border: 1px solid rgba(16,185,129,0.3); }
+    .score-medium { background: #f59e0b; color: #000; border: 1px solid rgba(245,158,11,0.3); }
+    .score-low    { background: #ef4444; color: #fff; border: 1px solid rgba(239,68,68,0.3); }
+
+    .card-reason { font-size: 0.82rem; color: var(--muted2); line-height: 1.5; flex: 1; }
+
+    .card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--glass-border);
+      margin-top: auto;
+    }
+    .cat-tag {
+      font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+      background: #3b82f6; border: 1px solid rgba(59,130,246,0.25);
+      color: #fff;
+    }
+    .feedback-btns { display: flex; gap: 0.4rem; }
+    .fb-btn {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      color: var(--muted); cursor: pointer;
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .fb-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .fb-btn.liked    { background: rgba(16,185,129,0.15); color: #34d399; border-color: rgba(16,185,129,0.35); }
+    .fb-btn.disliked { background: rgba(239,68,68,0.15);  color: #f87171; border-color: rgba(239,68,68,0.35); }
+
+    /* MODAL OVERRIDES */
+    .modal-content {
+      background: #111122;
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      color: var(--text);
+    }
+    .modal-header { border-bottom: 1px solid var(--glass-border); }
+    .modal-footer { border-top: 1px solid var(--glass-border); }
+    .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+    .model-col {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      height: 100%;
+      display: flex; flex-direction: column; gap: 1rem;
+    }
+    .model-col h5 { font-size: 1.1rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .model-col p { font-size: 0.9rem; color: var(--muted2); line-height: 1.5; flex: 1; margin: 0; }
+    .model-btn {
+      width: 100%; padding: 8px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      background: rgba(255,255,255,0.05); color: var(--text);
+      border: 1px solid var(--glass-border);
+      transition: all 0.2s;
+    }
+    .model-btn:hover { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #a78bfa; }
+    #modal-spinner { display: none; text-align: center; padding: 2rem; color: var(--muted2); }
+
+    .model-link {
+      display: block; width: 100%; text-align: center;
+      padding: 10px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: white; text-decoration: none; font-weight: 600; font-size: 0.85rem;
+      transition: opacity 0.2s;
+    }
+    .model-link:hover { opacity: 0.9; color: white; }
+
+    .btn-back {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+      color: var(--muted2); padding: 6px 16px; border-radius: 10px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-back:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+
+
+
+    /* ERROR */
+    .error-box {
+      background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 14px; padding: 1rem 1.25rem;
+      color: #fca5a5; font-size: 0.85rem; text-align: center;
+      max-width: 700px; margin: 0 auto 1.5rem;
+    }
+
+    /* FOOTER */
+    footer {
+      position: relative; z-index: 1;
+      text-align: center; padding: 2rem;
+      border-top: 1px solid var(--glass-border);
+      color: var(--muted); font-size: 0.78rem;
+    }
+    footer span { background: linear-gradient(135deg,var(--purple),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; font-weight:600; }
+
+    @media (max-width: 600px) {
+      nav { padding: 0 1rem; }
+      .nav-links { display: none; }
+      main { padding: 2rem 1rem 3rem; }
+      .input-card { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#8b5cf6"/>
+          <stop offset="1" stop-color="#3b82f6"/>
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill="url(#lg)" opacity="0.2"/>
+      <circle cx="10" cy="16" r="3" fill="url(#lg)"/>
+      <circle cx="22" cy="10" r="3" fill="url(#lg)"/>
+      <circle cx="22" cy="22" r="3" fill="url(#lg)"/>
+      <line x1="13" y1="14.5" x2="19" y2="11.5" stroke="url(#lg)" stroke-width="1.5"/>
+      <line x1="13" y1="17.5" x2="19" y2="20.5" stroke="url(#lg)" stroke-width="1.5"/>
+    </svg>
+    AI Öneri Motoru
+  </div>
+  <div class="nav-links">
+    <a href="#">Keşfet</a>
+    <a href="#">Kütüphane</a>
+    <a href="http://127.0.0.1:8000/docs" target="_blank">API Docs</a>
+  </div>
+  <div class="nav-badge">Beta</div>
+</nav>
+
+<main>
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">✦ Yapay Zeka Destekli</div>
+    <h1>Sana Özel İçerikler</h1>
+    <p>İlgi alanlarını yaz, AI motorumuz en uygun içerikleri seçip sana önersin.</p>
+  </div>
+
+  <!-- INPUT CARD -->
+  <div class="input-card">
+    <label class="input-label" for="interest-input">İlgi alanlarını yaz</label>
+    <div class="input-row">
+      <input
+        id="interest-input"
+        type="text"
+        placeholder="örn: yapay zeka, yazılım, girişimcilik..."
+        autocomplete="off"
+      />
+      <button class="btn-primary" id="recommend-btn" onclick="getRecommendations()">
+        <span>🔍</span> Öneri Al
+      </button>
+    </div>
+    <div class="chips" id="chips-container">
+      <span class="chip" onclick="addChip('Yapay Zeka')">Yapay Zeka</span>
+      <span class="chip" onclick="addChip('Yazılım')">Yazılım</span>
+      <span class="chip" onclick="addChip('Girişimcilik')">Girişimcilik</span>
+      <span class="chip" onclick="addChip('Veri Bilimi')">Veri Bilimi</span>
+      <span class="chip" onclick="addChip('Blockchain')">Blockchain</span>
+      <span class="chip" onclick="addChip('Siber Güvenlik')">Siber Güvenlik</span>
+      <span class="chip" onclick="addChip('Mobil Geliştirme')">Mobil Geliştirme</span>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div id="status-bar">
+    <span class="spinner"></span> AI içerikleri analiz ediyor...
+  </div>
+
+  <!-- ERROR -->
+  <div id="error-box" class="error-box" style="display:none;"></div>
+
+  <!-- RESULTS -->
+  <div id="results-section">
+    <div class="results-header">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="btn-back" onclick="goBackToHome()">← Geri Dön</button>
+        <div class="results-title">Size Özel Öneriler</div>
+      </div>
+      <div class="results-count" id="results-count"></div>
+    </div>
+    <!-- Bootstrap tabs for each model -->
+    <ul class="nav nav-tabs" id="modelTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="openai-tab-btn" data-bs-toggle="tab" data-bs-target="#openai-tab" type="button" role="tab" aria-controls="openai-tab" aria-selected="true">OpenAI</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="gemini-tab-btn" data-bs-toggle="tab" data-bs-target="#gemini-tab" type="button" role="tab" aria-controls="gemini-tab" aria-selected="false">Gemini</button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="claude-tab-btn" data-bs-toggle="tab" data-bs-target="#claude-tab" type="button" role="tab" aria-controls="claude-tab" aria-selected="false">Claude</button>
+      </li>
+    </ul>
+    <div class="tab-content" id="modelTabsContent" style="margin-top:1rem;">
+      <div class="tab-pane fade show active" id="openai-tab" role="tabpanel" aria-labelledby="openai-tab-btn">
+        <div class="cards-grid" id="openai-grid"></div>
+      </div>
+      <div class="tab-pane fade" id="gemini-tab" role="tabpanel" aria-labelledby="gemini-tab-btn">
+        <div class="cards-grid" id="gemini-grid"></div>
+      </div>
+      <div class="tab-pane fade" id="claude-tab" role="tabpanel" aria-labelledby="claude-tab-btn">
+        <div class="cards-grid" id="claude-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAILS MODAL -->
+  <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="detailsModalLabel">İçerik Detayları</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div id="modal-spinner">
+            <span class="spinner"></span> AI modelleri analiz ediyor...
+          </div>
+          <div id="modal-content-area" style="display:none;">
+            <div class="row g-4">
+              <!-- OpenAI -->
+              <div class="col-md-4">
+                <div class="model-col">
+                  <h5><span style="color:#10a37f;">✦</span> OpenAI</h5>
+                  <p id="detail-openai"></p>
+                  <a id="link-openai" href="#" target="_blank" class="model-link">Kaynağa Git →</a>
+                </div>
+              </div>
+              <!-- Gemini -->
+              <div class="col-md-4">
+                <div class="model-col">
+                  <h5><span style="color:#1a73e8;">✦</span> Gemini</h5>
+                  <p id="detail-gemini"></p>
+                  <a id="link-gemini" href="#" target="_blank" class="model-link">Kaynağa Git →</a>
+                </div>
+              </div>
+              <!-- Claude -->
+              <div class="col-md-4">
+                <div class="model-col">
+                  <h5><span style="color:#d97757;">✦</span> Claude</h5>
+                  <p id="detail-claude"></p>
+                  <a id="link-claude" href="#" target="_blank" class="model-link">Kaynağa Git →</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Powered by <span>OpenAI + Notion</span> &nbsp;·&nbsp; AI Öneri Motoru &copy; 2025
+</footer>
+
+<script>
+  const API_BASE = 'http://127.0.0.1:8000';
+
+  function addChip(text) {
+    const input = document.getElementById('interest-input');
+    const current = input.value.trim();
+    if (!current) {
+      input.value = text;
+    } else if (!current.toLowerCase().includes(text.toLowerCase())) {
+      input.value = current + ', ' + text;
+    }
+    input.focus();
+  }
+
+  function scoreClass(score) {
+    if (score >= 70) return 'score-high';
+    if (score >= 40) return 'score-medium';
+    return 'score-low';
+  }
+
+  function renderCard(rec, index) {
+    const delay = index * 80;
+    const cls   = scoreClass(rec.score);
+    const cat   = rec.category || '';
+    const title = rec.title   || 'Başlık Yok';
+    const score = rec.score   != null ? rec.score : '?';
+    const reason = rec.reason || '';
+
+    return `
+      <div class="rec-card" style="animation-delay:${delay}ms" id="card-${index}" onclick="openDetails('${escHtml(title)}')">
+        <div class="card-top">
+          <div class="card-title">${escHtml(title)}</div>
+          <span class="score-badge ${cls}">${score}% Uyum</span>
+        </div>
+        ${reason ? `<div class="card-reason">${escHtml(reason)}</div>` : ''}
+        <div class="card-footer" onclick="event.stopPropagation()">
+          ${cat ? `<span class="cat-tag">${escHtml(cat)}</span>` : '<span></span>'}
+          <div class="feedback-btns">
+            <button class="fb-btn" id="like-${index}"   title="Beğendim"   onclick="sendFeedback(${index}, '${escHtml(title)}', 'like')">👍</button>
+            <button class="fb-btn" id="dislike-${index}" title="Beğenmedim" onclick="sendFeedback(${index}, '${escHtml(title)}', 'dislike')">👎</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  async function getRecommendations() {
+    const interest = document.getElementById('interest-input').value.trim();
+    if (!interest) {
+      document.getElementById('interest-input').focus();
+      return;
+    }
+
+    const btn = document.getElementById('recommend-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner" style="border-left-color:white;border-top-color:white"></span> Analiz ediliyor...';
+
+    document.getElementById('status-bar').style.display = 'block';
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('error-box').style.display = 'none';
+
+    try {
+      const res = await fetch(`${API_BASE}/recommend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interest: interest, history: [] })
+      });
+
+      if (!res.ok) throw new Error(`Sunucu hatası: ${res.status}`);
+      const data = await res.json();
+
+      const recs = data.recommendations || {};
+      const totalCount = Object.values(recs).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
+      document.getElementById('results-count').textContent = `${totalCount} öneri bulundu`;
+      const renderTarget = (model, gridId) => {
+        const grid = document.getElementById(gridId);
+        const items = recs[model] || [];
+        grid.innerHTML = items.map((r, i) => renderCard(r, i)).join('');
+      };
+      renderTarget('OpenAI', 'openai-grid');
+      renderTarget('Gemini', 'gemini-grid');
+      renderTarget('Claude', 'claude-grid');
+      document.getElementById('results-section').style.display = 'block';
+
+    } catch (err) {
+      const errBox = document.getElementById('error-box');
+      errBox.textContent = '⚠️ Bağlantı hatası: ' + err.message + ' — Sunucunun çalıştığından emin olun.';
+      errBox.style.display = 'block';
+    } finally {
+      document.getElementById('status-bar').style.display = 'none';
+      btn.disabled = false;
+      btn.innerHTML = '<span>🔍</span> Öneri Al';
+    }
+  }
+
+  async function sendFeedback(index, itemTitle, type) {
+    const likeBtn    = document.getElementById(`like-${index}`);
+    const dislikeBtn = document.getElementById(`dislike-${index}`);
+    likeBtn.classList.remove('liked','disliked');
+    dislikeBtn.classList.remove('liked','disliked');
+
+    if (type === 'like')    likeBtn.classList.add('liked');
+    else                    dislikeBtn.classList.add('disliked');
+
+    try {
+      await fetch(`${API_BASE}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_name: 'Kullanıcı',
+          item_title: itemTitle,
+          feedback: type
+        })
+      });
+    } catch(_) {}
+  }
+
+  let currentDetailTitle = "";
+  let detailsModalInstance = null;
+
+  async function openDetails(title) {
+    if(!detailsModalInstance) {
+      detailsModalInstance = new bootstrap.Modal(document.getElementById('detailsModal'));
+    }
+    currentDetailTitle = title;
+    document.getElementById('detailsModalLabel').textContent = title;
+    document.getElementById('modal-spinner').style.display = 'block';
+    document.getElementById('modal-content-area').style.display = 'none';
+    detailsModalInstance.show();
+
+    const interest = document.getElementById('interest-input').value.trim();
+
+    try {
+      const res = await fetch(`${API_BASE}/item-details`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_title: title, interest: interest })
+      });
+      if (!res.ok) throw new Error('API hatası');
+      const data = await res.json();
+      
+      document.getElementById('detail-openai').textContent = data.details.OpenAI.text || 'Bilgi yok.';
+      document.getElementById('detail-gemini').textContent = data.details.Gemini.text || 'Bilgi yok.';
+      document.getElementById('detail-claude').textContent = data.details.Claude.text || 'Bilgi yok.';
+
+      document.getElementById('link-openai').href = data.details.OpenAI.link || '#';
+      document.getElementById('link-gemini').href = data.details.Gemini.link || '#';
+      document.getElementById('link-claude').href = data.details.Claude.link || '#';
+
+      document.getElementById('modal-spinner').style.display = 'none';
+      document.getElementById('modal-content-area').style.display = 'block';
+    } catch(err) {
+      document.getElementById('modal-spinner').innerHTML = `<span style="color:#fca5a5;">Açıklamalar yüklenirken hata oluştu.</span>`;
+    }
+  }
+
+  function goBackToHome() {
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('interest-input').value = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Enter tuşu desteği
+  document.getElementById('interest-input')
+    .addEventListener('keydown', e => { if (e.key === 'Enter') getRecommendations(); });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmxc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
+</html>
